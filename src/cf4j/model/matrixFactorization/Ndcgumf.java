@@ -26,7 +26,7 @@ public class Ndcgumf  implements FactorizationModel {
     private final static String ITEM_BIAS_KEY = "ndcgumf-item-bias";
     private final static String ITEM_FACTORS_KEY = "ndcgumf-item-factors";
 
-    private final static double DEFAULT_BETA = 11;
+    private final static double DEFAULT_BETA = 2;
     private final static double DEFAULT_GAMMA = 0.01;
     private final static double DEFAULT_LAMBDA = 0.1;
 
@@ -176,8 +176,11 @@ public class Ndcgumf  implements FactorizationModel {
         for (int iter = 1; iter <= this.numIters; iter++) {
 
             // ALS: fix q_i and update p_u -> fix p_u and update q_i
+            System.out.println("Update Item...");
             Processor.getInstance().itemsProcess(new Ndcgumf.UpdateItemsFactors(), false);
+            System.out.println("Update User...");
             Processor.getInstance().usersProcess(new Ndcgumf.UpdateUsersFactors(), false);
+            System.out.println("Update ItemCopy...");
             Processor.getInstance().itemsProcess(new Ndcgumf.UpdateItemsCopyFactors(), false);
 
             if ((iter % 10) == 0) System.out.print(".");
@@ -332,6 +335,8 @@ public class Ndcgumf  implements FactorizationModel {
             double [] p_u = Ndcgumf.this.getUserFactors(userIndex);
             double [] p_u_aux = new double[p_u.length];
 
+            System.out.println(userIndex);
+
             for (int j = 0; j < user.getNumberOfRatings(); j++) {
 
                 while (Kernel.gi().getItems()[itemIndex].getItemCode() < user.getItems()[j]) itemIndex++;
@@ -376,6 +381,7 @@ public class Ndcgumf  implements FactorizationModel {
                     Ndcgumf.this.setUserBias(userIndex, b_u);
                 }*/
             }
+            System.out.println(userIndex);
             for (int k = 0; k < Ndcgumf.this.numFactors; k++) {
                 p_u[k] -= p_u_aux[k] + Ndcgumf.this.gamma * Ndcgumf.this.lambda * p_u[k];
             }
@@ -400,6 +406,8 @@ public class Ndcgumf  implements FactorizationModel {
         @Override
         public void run(int itemIndex) {
 
+            System.out.println(itemIndex);
+
             double idcgu;
             double smi, smiprima;
 
@@ -415,6 +423,10 @@ public class Ndcgumf  implements FactorizationModel {
                 User user = Kernel.gi().getUsers()[userIndex];
 
                 double gradiente = 0;
+
+                if (itemIndex==0){
+                    System.out.println("" + itemIndex + "While start" + v);
+                }
 
                 while (user.getUserCode() < item.getUsers()[v]){
 
@@ -441,8 +453,15 @@ public class Ndcgumf  implements FactorizationModel {
 
                     user = Kernel.gi().getUsers()[userIndex];
                 }
+                if (itemIndex==0){
+                    System.out.println("" + itemIndex + "While fi");
+                }
 
                 int itemIndexPrima = 0;
+
+                if (itemIndex==0){
+                    System.out.println("" + itemIndex + "For start");
+                }
 
                 for(int w = 0; w < user.getNumberOfRatings(); w++)
                 {
@@ -461,22 +480,36 @@ public class Ndcgumf  implements FactorizationModel {
 
                 }
 
+                if (itemIndex==0){
+                    System.out.println("" + itemIndex + "For fi");
+                }
+
                 smi = Ndcgumf.this.softmax(userIndex,itemIndex);
                 idcgu = Ndcgumf.this.getIdcgu(userIndex);
                 // Get gradiente
                 gradiente += 1/idcgu*
-                        (Math.pow(2,user.getRatings()[v])-1)/
+                        (Math.pow(2,item.getRatings()[v])-1)/
                         (Math.pow(Math.log(Ndcgumf.this.getPos(userIndex,itemIndex) + 1),3))*
                         smi*(1-smi);
 
                 // Update p_u
                 double [] p_u = Ndcgumf.this.getUserFactors(userIndex);
 
+                if (itemIndex==0){
+                    System.out.println("" + itemIndex + "For 2 start");
+                }
+
                 for (int k = 0; k < Ndcgumf.this.numFactors; k++) {
                     q_i[k] -= Ndcgumf.this.gamma * Ndcgumf.this.beta * (user.getNumberOfRatings()-1) *
                             Math.log(2) * p_u[k] * gradiente;
                 }
+
+                if (itemIndex==0){
+                    System.out.println("" + itemIndex + "For 2 fi");
+                }
             }
+
+            System.out.println(itemIndex);
 
             for (int k = 0; k < Ndcgumf.this.numFactors; k++) {
                 q_i[k] -= Ndcgumf.this.gamma * Ndcgumf.this.lambda * q_iCopy[k];
@@ -499,87 +532,10 @@ public class Ndcgumf  implements FactorizationModel {
         @Override
         public void run(int itemIndex) {
 
-            double idcgu;
-            double smi, smiprima;
-
             double [] q_i = Ndcgumf.this.getItemFactors(itemIndex);
             double [] q_iCopy = Ndcgumf.this.getItemCopyFactors(itemIndex);
 
-            Item item = Kernel.gi().getItems()[itemIndex];
-
-            int userIndex = 0;
-
-            for (int v = 0; v < item.getNumberOfRatings(); v++)
-            {
-                User user = Kernel.gi().getUsers()[userIndex];
-
-                double gradiente = 0;
-
-                while (user.getUserCode() < item.getUsers()[v]){
-
-                    int itemIndexPrima = 0;
-
-                    for(int w = 0; w < user.getNumberOfRatings(); w++)
-                    {
-                        while(Kernel.gi().getItems()[itemIndexPrima].getItemCode() < user.getItems()[w]) itemIndexPrima++;
-
-                        if(itemIndex != itemIndexPrima){
-                            idcgu = Ndcgumf.this.getIdcgu(userIndex);
-                            smi = Ndcgumf.this.softmax(userIndex,itemIndex);
-                            smiprima =Ndcgumf.this.softmax(userIndex,itemIndexPrima);
-
-                            gradiente -= 1/idcgu*
-                                    (Math.pow(2,Ndcgumf.this.getPrediction(userIndex, itemIndexPrima))-1)/
-                                    (Math.pow(Math.log(Ndcgumf.this.getPos(userIndex,itemIndexPrima) + 1),3))*
-                                    smi*smiprima;
-                        }
-
-                    }
-
-                    userIndex++;
-
-                    user = Kernel.gi().getUsers()[userIndex];
-                }
-
-                int itemIndexPrima = 0;
-
-                for(int w = 0; w < user.getNumberOfRatings(); w++)
-                {
-                    while(Kernel.gi().getItems()[itemIndexPrima].getItemCode() < user.getItems()[w]) itemIndexPrima++;
-
-                    if(itemIndex != itemIndexPrima){
-                        idcgu = Ndcgumf.this.getIdcgu(userIndex);
-                        smi = Ndcgumf.this.softmax(userIndex,itemIndex);
-                        smiprima =Ndcgumf.this.softmax(userIndex,itemIndexPrima);
-
-                        gradiente -= 1/idcgu*
-                                (Math.pow(2,Ndcgumf.this.getPrediction(userIndex, itemIndexPrima))-1)/
-                                (Math.pow(Math.log(Ndcgumf.this.getPos(userIndex,itemIndexPrima) + 1),3))*
-                                smi*smiprima;
-                    }
-
-                }
-
-                smi = Ndcgumf.this.softmax(userIndex,itemIndex);
-                idcgu = Ndcgumf.this.getIdcgu(userIndex);
-                // Get gradiente
-                gradiente += 1/idcgu*
-                        (Math.pow(2,Ndcgumf.this.getPrediction(userIndex, itemIndex))-1)/
-                        (Math.pow(Math.log(Ndcgumf.this.getPos(userIndex,itemIndex) + 1),3))*
-                        smi*(1-smi);
-
-                // Update p_u
-                double [] p_u = Ndcgumf.this.getUserFactors(userIndex);
-
-                for (int k = 0; k < Ndcgumf.this.numFactors; k++) {
-                    q_i[k] -= Ndcgumf.this.gamma * Ndcgumf.this.beta * (user.getNumberOfRatings()-1) *
-                            Math.log(2) * p_u[k] * gradiente;
-                }
-            }
-
-            for (int k = 0; k < Ndcgumf.this.numFactors; k++) {
-                q_i[k] -= Ndcgumf.this.gamma * Ndcgumf.this.lambda * q_iCopy[k];
-            }
+            q_iCopy = q_i;
         }
     }
 
@@ -655,7 +611,7 @@ public class Ndcgumf  implements FactorizationModel {
 
         for (int j = 0; j < user.getNumberOfRatings(); j++) {
 
-            while (Kernel.gi().getItems()[itemIndex].getItemCode() < user.getItems()[j]) itemJndex++;
+            while (Kernel.gi().getItems()[itemJndex].getItemCode() < user.getItems()[j]) itemJndex++;
 
             softmax += Math.exp(this.beta * Ndcgumf.this.getPrediction(userIndex, itemJndex));
         }

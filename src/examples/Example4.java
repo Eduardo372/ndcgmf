@@ -3,6 +3,7 @@ package examples;
 import cf4j.Kernel;
 import cf4j.Processor;
 import cf4j.model.matrixFactorization.Bmf;
+import cf4j.model.matrixFactorization.Ndcgumf;
 import cf4j.model.matrixFactorization.Pmf;
 import cf4j.model.predictions.FactorizationPrediction;
 import cf4j.qualityMeasures.MAE;
@@ -28,10 +29,10 @@ public class Example4 {
     private static int pmf_numIters = 50;
     private static double pmf_lambda = 0.055;
 
-    //private static int bmf_numTopics = 6;
-    //private static int bmf_numIters = 50;
-    //private static double bmf_alpha = 0.8;
-    //private static double bmf_beta = 5;
+    private static int ndcgumf_numTopics = 6;
+    private static int ndcgumf_numIters = 50;
+    //private static double ndcgumf_alpha = 0.8;
+    //private static double ndcgumf_beta = 5;
 
     // --------------------------------------------------------------------------------------------
 
@@ -56,18 +57,18 @@ public class Example4 {
         System.out.println("- Precision: " + Kernel.gi().getQualityMeasure("Precision"));
 
 
-        // BMF
-        /*Bmf bmf = new Bmf (bmf_numTopics, bmf_numIters, bmf_alpha, bmf_beta);
-        bmf.train();
+        // Ndcgumf
+        Ndcgumf ndcgumf = new Ndcgumf (ndcgumf_numTopics, ndcgumf_numIters);
+        ndcgumf.train();
 
-        Processor.getInstance().testUsersProcess(new FactorizationPrediction(bmf));
+        Processor.getInstance().testUsersProcess(new FactorizationPrediction(ndcgumf));
 
-        System.out.println("\nBMF:");
+        System.out.println("\nNdcgumf:");
 
         Processor.getInstance().testUsersProcess(new MAE());
         System.out.println("- MAE: " + Kernel.gi().getQualityMeasure("MAE"));
 
         Processor.getInstance().testUsersProcess(new Precision(numRecommendations, threshold));
-        System.out.println("- Precision: " + Kernel.gi().getQualityMeasure("Precision"));*/
+        System.out.println("- Precision: " + Kernel.gi().getQualityMeasure("Precision"));
     }
 }
